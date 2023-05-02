@@ -42,6 +42,7 @@ include_directories(include
 
 add_library(${PROJECT_NAME}	
 			src/draw/smr_dweel.cpp
+			src/draw/smr_dweel_bars.cpp
 			)
 
 target_link_libraries(${PROJECT_NAME} 
