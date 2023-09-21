@@ -9,13 +9,38 @@ find_package(catkin REQUIRED COMPONENTS
 			 std_msgs
 			 rosneuro_msgs
 			 geometry_msgs
-			 )
+)
 
-find_library(NEURODRAW_LIBRARIES neurodraw REQUIRED)
-find_path(NEURODRAW_INCLUDE_DIRS neurodraw/Shape.h REQUIRED)
+# Import the neurodraw library
+find_path(NDP neurodraw PATHS ${CMAKE_BINARY_DIR})
+message(${NDP})
+if(NOT EXISTS ${CMAKE_BINARY_DIR}/neurodraw)
 
-find_library(NEUROCHRONO_LIBRARIES neurochrono REQUIRED)
-find_path(NEUROCHRONO_INCLUDE_DIRS neurochrono/Timer.h REQUIRED)
+  include(ExternalProject)
+  ExternalProject_Add(ext_neurodraw
+    GIT_REPOSITORY https://github.com/neurorobotics-iaslab/neurodraw
+    GIT_TAG main
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/neurodraw
+    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/neurodraw
+  ) 
+  
+  add_library(neurodraw SHARED IMPORTED)
+  add_library(neurochrono SHARED IMPORTED)
+  
+  set_property(TARGET neurodraw PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/neurodraw/lib/libneurodraw.so)
+  set_property(TARGET neurochrono PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/neurodraw/lib/libneurochrono.so)
+  
+  add_dependencies(neurodraw ext_neurodraw)
+  add_dependencies(neurochrono ext_neurodraw)
+else()
+  add_library(neurodraw SHARED IMPORTED)
+  add_library(neurochrono SHARED IMPORTED)
+  
+  set_property(TARGET neurodraw PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/neurodraw/lib/libneurodraw.so)
+  set_property(TARGET neurochrono PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/neurodraw/lib/libneurochrono.so)
+endif()
+
+
 
 catkin_package(
   INCLUDE_DIRS 
@@ -36,9 +61,10 @@ catkin_package(
 ###########
 
 include_directories(include 
-					${catkin_INCLUDE_DIRS} 
-					${NEURODRAW_INCLUDE_DIRS}
-					${NEUROCHRONO_INCLUDE_DIRS})
+					${catkin_INCLUDE_DIRS}
+          # ${install_dir}/src/ext_neurodraw/include
+          ${CMAKE_BINARY_DIR}/neurodraw/include
+          )
 
 add_library(${PROJECT_NAME}	
 			src/draw/smr_dweel.cpp
@@ -47,11 +73,12 @@ add_library(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME} 
 					  ${catkin_LIBRARIES}
-					  ${NEURODRAW_LIBRARIES}
-					  ${NEUROCHRONO_LIBRARIES})
+					  neurodraw
+            neurochrono
+					 )
 
 add_dependencies(${PROJECT_NAME} 
-				 ${catkin_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
 )
 
 #################
@@ -60,5 +87,6 @@ add_dependencies(${PROJECT_NAME}
 add_executable(neurowheel src/neurowheel.cpp)
 target_link_libraries(neurowheel ${PROJECT_NAME}
 								 ${catkin_LIBRARIES}
-					  			 ${NEURODRAW_LIBRARIES}
-					  			 ${NEUROCHRONO_LIBRARIES})
+                 neurodraw
+                 neurochrono
+                 )
