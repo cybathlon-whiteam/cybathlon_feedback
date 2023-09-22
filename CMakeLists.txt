@@ -67,6 +67,9 @@ include_directories(include
           )
 
 add_library(${PROJECT_NAME}	
+      src/draw/smr_weel.cpp
+      src/draw/smr_weel_bars.cpp
+
 			src/draw/smr_dweel.cpp
 			src/draw/smr_dweel_bars.cpp
 			)
