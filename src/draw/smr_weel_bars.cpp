@@ -14,6 +14,15 @@ void smr_weel_bars::setup_scene(void){
 		this->aline_ = new neurodraw::Rectangle(0.15f, 0.1f, true, neurodraw::Palette::white);
 		this->bline_ = new neurodraw::Rectangle(0.15f, 0.1f, true, neurodraw::Palette::white);
 
+		this->a_ = new neurodraw::RegularShape(0.15f, 3, false,  neurodraw::Palette::white);
+		this->b_ = new neurodraw::RegularShape(0.15f, 4, false,  neurodraw::Palette::white);
+
+		this->a_->move(-1.0f,  0.75f);
+		this->b_->move( 1.0f,  0.8f);
+
+		this->a_->rotate( 90);
+		this->b_->rotate(-45);
+
 		this->abar_->move(-1.0f, 0.0f);
 		this->bbar_->move(1.0f,  0.0f);
 
@@ -25,6 +34,8 @@ void smr_weel_bars::setup_scene(void){
 		this->engine_->add(this->aline_);
 		this->engine_->add(this->bline_);
 
+		this->engine_->add(this->a_);
+		this->engine_->add(this->b_);
 }
 
 void smr_weel_bars::on_received_bar_data(const std_msgs::Float32MultiArray& msg){

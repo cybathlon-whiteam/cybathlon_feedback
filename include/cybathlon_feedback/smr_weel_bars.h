@@ -6,6 +6,7 @@
 #include <cmath>
 
 #include "cybathlon_feedback/smr_weel.h"
+#include "neurodraw/RegularShape.h"
 
 namespace rosneuro {
 
@@ -27,6 +28,11 @@ class smr_weel_bars : public smr_weel {
 		
 		neurodraw::Rectangle* 	aline_;
 		neurodraw::Rectangle* 	bline_;
+
+    neurodraw::RegularShape* 	a_;
+    neurodraw::RegularShape* 	b_;
+
+
 
     float bar1_ = 0.0f;
     float bar2_ = 0.0f;
