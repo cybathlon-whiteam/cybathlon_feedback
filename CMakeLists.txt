@@ -7,8 +7,11 @@ SET(CMAKE_BUILD_TYPE RelWithDebInfo)
 find_package(catkin REQUIRED COMPONENTS 
 			 roscpp 
 			 std_msgs
+       pluginlib
 			 rosneuro_msgs
 			 geometry_msgs
+       dynamic_reconfigure
+       rosneuro_cybathlon_controller
 )
 
 # Import the neurodraw library
@@ -40,8 +43,10 @@ else()
   set_property(TARGET neurochrono PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/neurodraw/lib/libneurochrono.so)
 endif()
 
-
-
+#generate_dynamic_reconfigure_options(
+#  cfg/SmrWeelBars.cfg
+#)     
+ 
 catkin_package(
   INCLUDE_DIRS 
 	include
@@ -52,10 +57,11 @@ catkin_package(
 	std_msgs
 	rosneuro_msgs
 	geometry_msgs
+  rosneuro_cybathlon_controller
   DEPENDS
-)
-
-
+) 
+ 
+ 
 ###########
 ## Build ##
 ###########
@@ -82,6 +88,8 @@ target_link_libraries(${PROJECT_NAME}
 
 add_dependencies(${PROJECT_NAME} 
   ${catkin_EXPORTED_TARGETS}
+#  ${PROJECT_NAME}_gencfg
+  rosneuro_cybathlon_controller_gencfg
 )
 
 #################

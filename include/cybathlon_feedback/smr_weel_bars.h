@@ -18,7 +18,6 @@ class smr_weel_bars : public smr_weel {
   protected:
     void setup_scene(void) override;
     void on_received_bar_data(const std_msgs::Float32MultiArray& msg);
-
     
   private:
     ros::Subscriber 	    sub_bar_;
@@ -33,7 +32,6 @@ class smr_weel_bars : public smr_weel {
     float bar2_ = 0.0f;
     
 };
-
 }
 
 #endif

@@ -11,6 +11,13 @@ smr_weel::smr_weel(void) : p_nh_("~") {
 	this->engine_->on_keyboard(&smr_weel::on_keyboard_event, this);
 
 	this->user_quit_ = false;
+
+	// Bind dynamic reconfigure callback
+   	this->recfg_callback_type_ = boost::bind(&smr_weel::on_request_reconfigure, this, _1, _2);
+	this->recfg_srv_.setCallback(this->recfg_callback_type_);
+
+	this->client = this->nh_.serviceClient<dynamic_reconfigure::Reconfigure>(
+        "/navigation_controller/cybathlon_feedback/set_parameters");
 }
 
 smr_weel::~smr_weel(void) {
@@ -21,9 +28,9 @@ smr_weel::~smr_weel(void) {
 }
 
 bool smr_weel::configure(
-			std::vector<float> threshold_soft,
-			std::vector<float> threshold_hard,
-			std::vector<float> threshold_final
+			std::vector<double> threshold_soft,
+			std::vector<double> threshold_hard,
+			std::vector<double> threshold_final
 	) {
 	this->input_min_ = 0.0f;
 	this->input_max_ = 1.0f;
@@ -88,7 +95,7 @@ void smr_weel::run(void) {
 }
 
 void smr_weel::on_received_neuro_data(const rosneuro_msgs::NeuroOutput& msg) {
-	float input;
+	double input;
 	input = msg.softpredict.data.at(0);
 	probability_angle = this->input2angle(input);
 }
@@ -108,7 +115,7 @@ void smr_weel::on_keyboard_event(const neurodraw::KeyboardEvent& event) {
 
 float smr_weel::input2angle(float input) {
 
-	float b, a, xmax, xmin, angle;
+	double b, a, xmax, xmin, angle;
 
 	b    = this->angle_max_;
 	a    = this->angle_min_;
@@ -118,6 +125,48 @@ float smr_weel::input2angle(float input) {
 	angle = (b-a) * ( (input - xmin) / (xmax - xmin) ) + a;
 
 	return angle;
+
+}
+
+void smr_weel::on_request_reconfigure(cybathlon_feedback &config, uint32_t level) {
+	std::vector<double> threshold_soft;
+	std::vector<double> threshold_hard;
+	std::vector<double> threshold_final;
+
+	threshold_soft  = {config.thsl, config.thsr};
+	threshold_hard  = {config.thhl, config.thhr};
+	threshold_final = {config.thfl, config.thfr};
+
+	this->configure(threshold_soft, threshold_hard, threshold_final);
+
+	// SPAM THE CONFIGURATION TO THE CONTROLLER
+	// TODO: SET A BETTER CODE
+	// TODO: CHECK IF IT IS BETTER TO PUT THIS IN THE CONTORLLER AND NOT IN THE FEEDBACK
+	dynamic_reconfigure::Config config_c;
+
+	dynamic_reconfigure::DoubleParameter double_param;
+    double_param.name = "thsl"; // Sostituisci con il nome del parametro da modificare
+    double_param.value = config.thsl; // Sostituisci con il valore desiderato
+    config_c.doubles.push_back(double_param);
+	double_param.name = "thsr"; // Sostituisci con il nome del parametro da modificare
+    double_param.value = config.thsr; // Sostituisci con il valore desiderato
+    config_c.doubles.push_back(double_param);
+	double_param.name = "thhl"; // Sostituisci con il nome del parametro da modificare
+    double_param.value = config.thhl; // Sostituisci con il valore desiderato
+    config_c.doubles.push_back(double_param);
+	double_param.name = "thhr"; // Sostituisci con il nome del parametro da modificare
+    double_param.value = config.thhr; // Sostituisci con il valore desiderato
+    config_c.doubles.push_back(double_param);
+	double_param.name = "thfl"; // Sostituisci con il nome del parametro da modificare
+    double_param.value = config.thfl; // Sostituisci con il valore desiderato
+    config_c.doubles.push_back(double_param);
+	double_param.name = "thfr"; // Sostituisci con il nome del parametro da modificare
+    double_param.value = config.thfr; // Sostituisci con il valore desiderato
+    config_c.doubles.push_back(double_param);
+
+	this->srv.request.config = config_c;
+	this->client.call(this->srv);
+
 
 }
 

@@ -38,5 +38,3 @@ void smr_weel_bars::update() {
 	this->aline_->move(-1.0f, bar1_-0.5f);
 	this->bline_->move( 1.0f, bar2_-0.5f);
 }
-
-
