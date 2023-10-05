@@ -103,6 +103,8 @@ class smr_weel {
 		dyncfg_feedback::CallbackType recfg_callback_type_;
 
 		ros::ServiceClient client;
+		ros::ServiceClient integrator_client;
+
 		dynamic_reconfigure::Reconfigure srv;
 
 };

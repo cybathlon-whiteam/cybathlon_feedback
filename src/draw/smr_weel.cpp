@@ -18,6 +18,9 @@ smr_weel::smr_weel(void) : p_nh_("~") {
 
 	this->client = this->nh_.serviceClient<dynamic_reconfigure::Reconfigure>(
         "/navigation_controller/cybathlon_feedback/set_parameters");
+
+	this->integrator_client = this->nh_.serviceClient<dynamic_reconfigure::Reconfigure>(
+        "/integrator/cybathlon_feedback/set_parameters");
 }
 
 smr_weel::~smr_weel(void) {
@@ -167,7 +170,22 @@ void smr_weel::on_request_reconfigure(cybathlon_feedback &config, uint32_t level
 	this->srv.request.config = config_c;
 	this->client.call(this->srv);
 
+	// SPAM THE CONFIGURATION TO THE INTEGRATOR
+	// TODO: SET A BETTER CODE
+	// TODO: CHECK IF IT IS BETTER TO PUT THIS IN THE CONTORLLER AND NOT IN THE FEEDBACK
+	dynamic_reconfigure::Config config_i;
 
+	double_param.name = "thfl"; // Sostituisci con il nome del parametro da modificare
+    double_param.value = config.thfl; // Sostituisci con il valore desiderato
+    config_i.doubles.push_back(double_param);
+	double_param.name = "thfr"; // Sostituisci con il nome del parametro da modificare
+    double_param.value = config.thfr; // Sostituisci con il valore desiderato
+    config_i.doubles.push_back(double_param);
+
+	this->srv.request.config = config_i;
+	this->integrator_client.call(this->srv);
+
+	this->configure(threshold_soft, threshold_hard, threshold_final);
 }
 
 }
