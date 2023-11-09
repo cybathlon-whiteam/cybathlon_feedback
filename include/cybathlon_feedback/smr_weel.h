@@ -69,11 +69,12 @@ class smr_weel {
 			neurodraw::Rectangle* 	lline_;
 			neurodraw::Rectangle* 	rline_;
 
-            double left;
-            double rigth;
-            thresholds_angle(float l = 180.0f, float r = 0.0f, float circ = 0.725f, float len = 0.15f) : left(l), rigth(r) {
-				this->lline_ = new neurodraw::Rectangle(0.01f, len, true, neurodraw::Palette::darkgray);
-				this->rline_ = new neurodraw::Rectangle(0.01f, len, true, neurodraw::Palette::darkgray);
+      double left;
+      double rigth;
+      
+      thresholds_angle(float l = 180.0f, float r = 0.0f, neurodraw::Color color = neurodraw::Palette::darkgray , float circ = 0.725f, float len = 0.15f) : left(l), rigth(r) {
+				this->lline_ = new neurodraw::Rectangle(0.01f, len, true, color);
+				this->rline_ = new neurodraw::Rectangle(0.01f, len, true, color);
 
 				this->rline_->move(0.0f, circ);
 				this->lline_->move(0.0f, circ);
@@ -81,7 +82,9 @@ class smr_weel {
 				this->rline_->rotate(rigth, 0.0f, 0.0f);
 				this->lline_->rotate(left,  0.0f, 0.0f);
 			}
-        } probablility, command_a, command_b, cmd_f;
+    } probablility, command_a, command_b, cmd_f;
+
+    neurodraw::Rectangle* middle_line_;
 
 
 	private:

@@ -42,8 +42,8 @@ bool smr_weel::configure(
 	this->angle_max_ = 180.0f;
 	
 	this->probablility = thresholds_angle(input2angle(threshold_soft[0]) , input2angle(1 - threshold_soft[1])  );
-	this->command_a = thresholds_angle(input2angle(threshold_soft[0]) , input2angle(1 - threshold_soft[1])  );
-	this->command_b = thresholds_angle(input2angle(threshold_hard[0]) , input2angle(1 - threshold_hard[1])  );
+	this->command_a = thresholds_angle(input2angle(threshold_soft[0]) , input2angle(1 - threshold_soft[1]) , neurodraw::Palette::blue);
+	this->command_b = thresholds_angle(input2angle(threshold_hard[0]) , input2angle(1 - threshold_hard[1]) , neurodraw::Palette::red);
 	this->cmd_f = thresholds_angle(input2angle(threshold_final[0]) , input2angle(1 - threshold_final[1])  );
 
 	this->setup_scene();
@@ -55,12 +55,14 @@ bool smr_weel::configure(
 void smr_weel::setup_scene(void) {
 	
 	this->ring_  = new neurodraw::Ring(0.8f, 0.15f, neurodraw::Palette::grey);
+  this->middle_line_ = new neurodraw::Rectangle(0.01f, 0.15f, true, neurodraw::Palette::darkgrey);
 
 	this->arc_   = new neurodraw::Arc(0.8f, 0.15f, 2.0 * M_PI / 3.0f, neurodraw::Palette::lightgrey);
 	this->mline_ = new neurodraw::Rectangle(0.01f, 0.15f, true, neurodraw::Palette::green);
 	
 	this->arc_->rotate(30);
 	this->mline_->move(0.0f, 0.725f);
+  this->middle_line_->move(0.0f, 0.725f);
 
 	this->engine_->add(this->ring_);
 
@@ -77,6 +79,7 @@ void smr_weel::setup_scene(void) {
 	this->engine_->add(this->cmd_f.lline_);
 	
 	this->engine_->add(this->mline_);
+  this->engine_->add(this->middle_line_);
 
 }
 
