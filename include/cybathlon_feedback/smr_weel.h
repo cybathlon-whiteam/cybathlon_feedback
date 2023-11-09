@@ -19,6 +19,7 @@
 #include <dynamic_reconfigure/Reconfigure.h>
 //#include "cybathlon_feedback/FeedbackConfig.h"
 #include "rosneuro_cybathlon_controller/AllControllerConfig.h"
+#include "rosneuro_integrator_exponential/ExponentialMarginConfig.h"
 
 #include <cmath>
 
@@ -26,6 +27,9 @@ namespace rosneuro {
 
 using cybathlon_feedback   = rosneuro_cybathlon_controller::AllControllerConfig;
 using dyncfg_feedback      = dynamic_reconfigure::Server<cybathlon_feedback>;
+
+using exponential_feedback = rosneuro_integrator_exponential::ExponentialMarginConfig;
+using dyncfg_exponential   = dynamic_reconfigure::Server<exponential_feedback>;
 
 class smr_weel {
 
@@ -38,6 +42,8 @@ class smr_weel {
 			std::vector<double> threshold_hard,
 			std::vector<double> threshold_final
 	    );
+    
+    bool configure();
 
 		void run(void);
 
@@ -54,6 +60,7 @@ class smr_weel {
 		void on_keyboard_event(const neurodraw::KeyboardEvent& event);
 
 		void on_request_reconfigure(cybathlon_feedback &config, uint32_t level);  
+    void on_request_reconfigure_f(exponential_feedback &config, uint32_t level); 
 
 		neurodraw::Engine* 		engine_;
 		ros::NodeHandle 	nh_;
@@ -86,6 +93,8 @@ class smr_weel {
 
     neurodraw::Rectangle* middle_line_;
 
+    std::vector<double> string2vector_converter(std::string msg);
+
 
 	private:
 		ros::NodeHandle	 p_nh_;
@@ -105,10 +114,16 @@ class smr_weel {
 		dyncfg_feedback               recfg_srv_;
 		dyncfg_feedback::CallbackType recfg_callback_type_;
 
+    dyncfg_exponential::CallbackType recfg_exponential_callback_type_; 
+
 		ros::ServiceClient client;
 		ros::ServiceClient integrator_client;
 
 		dynamic_reconfigure::Reconfigure srv;
+
+    std::vector<double> thresholds_soft_ = {0.6,0.6}, thresholds_hard_ = {0.9,0.9}, thresholds_final_ = {1.0,1.0};
+    std::string string_thresholds_soft_, string_thresholds_hard_, string_thresholds_final_, string_thresholds_initial_;
+
 
 };
 
