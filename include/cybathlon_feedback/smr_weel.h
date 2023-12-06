@@ -4,10 +4,12 @@
 #include <ros/ros.h>
 #include <rosneuro_msgs/NeuroOutput.h>
 #include <geometry_msgs/Twist.h>
+#include "rosneuro_msgs/NeuroEvent.h"
 
 #include "neurodraw/Ring.h"
 #include "neurodraw/Arc.h"
 #include "neurodraw/Cross.h"
+#include "neurodraw/Circle.h"
 #include "neurodraw/Line.h"
 #include "neurodraw/Rectangle.h"
 #include "neurodraw/Engine.h"
@@ -19,11 +21,15 @@
 #include <dynamic_reconfigure/Reconfigure.h>
 //#include "cybathlon_feedback/FeedbackConfig.h"
 #include "rosneuro_cybathlon_controller/AllControllerConfig.h"
+#include "rosneuro_cybathlon_controller/RangeConfig.h"
 #include "rosneuro_integrator_exponential/ExponentialMarginConfig.h"
 
 #include <cmath>
 
 namespace rosneuro {
+
+using cybathlon_range   = rosneuro_cybathlon_controller::RangeConfig;
+using dyncfg_range      = dynamic_reconfigure::Server<cybathlon_range>;
 
 using cybathlon_feedback   = rosneuro_cybathlon_controller::AllControllerConfig;
 using dyncfg_feedback      = dynamic_reconfigure::Server<cybathlon_feedback>;
@@ -42,8 +48,10 @@ class smr_weel {
 			std::vector<double> threshold_hard,
 			std::vector<double> threshold_final
 	    );
+
+		bool configure(double offset);
     
-    bool configure();
+        bool configure();
 
 		void run(void);
 
@@ -51,16 +59,20 @@ class smr_weel {
 
 		float input2angle(float input);
 
+		void reset(void);
+
 
 	protected:
 		virtual void setup_scene(void);
 		
 		void on_received_neuro_data(const rosneuro_msgs::NeuroOutput& msg);
+		void on_received_event(const rosneuro_msgs::NeuroEvent & msg);
 
 		void on_keyboard_event(const neurodraw::KeyboardEvent& event);
 
 		void on_request_reconfigure(cybathlon_feedback &config, uint32_t level);  
-    void on_request_reconfigure_f(exponential_feedback &config, uint32_t level); 
+		void on_request_reconfigure_range(cybathlon_range &config, uint32_t level);  
+        void on_request_reconfigure_f(exponential_feedback &config, uint32_t level); 
 
 		neurodraw::Engine* 		engine_;
 		ros::NodeHandle 	nh_;
@@ -71,8 +83,9 @@ class smr_weel {
 		double input_max_;
 		double angle_min_;
 		double angle_max_;
+		bool   detect_eog_;
 
-		struct thresholds_angle {
+	struct thresholds_angle {
 			neurodraw::Rectangle* 	lline_;
 			neurodraw::Rectangle* 	rline_;
 
@@ -80,8 +93,8 @@ class smr_weel {
       double rigth;
       
       thresholds_angle(float l = 180.0f, float r = 0.0f, neurodraw::Color color = neurodraw::Palette::darkgray , float circ = 0.725f, float len = 0.15f) : left(l), rigth(r) {
-				this->lline_ = new neurodraw::Rectangle(0.01f, len, true, color);
-				this->rline_ = new neurodraw::Rectangle(0.01f, len, true, color);
+				this->lline_ = new neurodraw::Rectangle(0.02f, len, true, color);
+				this->rline_ = new neurodraw::Rectangle(0.02f, len, true, color);
 
 				this->rline_->move(0.0f, circ);
 				this->lline_->move(0.0f, circ);
@@ -100,6 +113,7 @@ class smr_weel {
 		ros::NodeHandle	 p_nh_;
 		
 		ros::Subscriber 	sub_neuro_;
+		ros::Subscriber 	sub_events_;
 
 		//neurodraw::Engine* 		engine_;
 		
@@ -107,17 +121,20 @@ class smr_weel {
 		
 		neurodraw::Arc* 		arc_;
 		neurodraw::Rectangle* 	mline_;
+		neurodraw::Circle* 	eog_;
 			
 	
 		double probability_angle = 0.0f;
+		double initial_probability_ = 0.5f;
 
 		dyncfg_feedback               recfg_srv_;
 		dyncfg_feedback::CallbackType recfg_callback_type_;
 
     dyncfg_exponential::CallbackType recfg_exponential_callback_type_; 
 
-		ros::ServiceClient client;
-		ros::ServiceClient integrator_client;
+		ros::ServiceClient navigation_th_client_;
+		ros::ServiceClient navigation_mid_client_;
+		ros::ServiceClient integrator_client_;
 
 		dynamic_reconfigure::Reconfigure srv;
 

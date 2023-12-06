@@ -44,8 +44,12 @@ void smr_weel_bars::on_received_bar_data(const std_msgs::Float32MultiArray& msg)
 }
 
 void smr_weel_bars::update() {
-	smr_weel::update();
 
-	this->aline_->move(-1.0f, bar1_-0.5f);
-	this->bline_->move( 1.0f, bar2_-0.5f);
+	if(!this->detect_eog_){
+		smr_weel::update();
+		this->aline_->move(-1.0f, bar1_-0.5f);
+		this->bline_->move( 1.0f, bar2_-0.5f);
+	}else{
+		smr_weel::reset();
+	}
 }
