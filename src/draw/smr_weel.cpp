@@ -275,10 +275,6 @@ void smr_weel::on_request_reconfigure(cybathlon_feedback &config, uint32_t level
 
 void smr_weel::on_request_reconfigure_range(cybathlon_range &config, uint32_t level){
 
-    if(!std::abs(this->initial_probability_ - config.offset) > 0.00001){
-        return ;
-    }
-
     this->configure(config.offset);
     ROS_WARN("Update middle line %f", this->initial_probability_);
 
