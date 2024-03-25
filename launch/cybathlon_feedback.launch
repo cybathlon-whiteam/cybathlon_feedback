@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+	
+	<arg name="classes"		default='[769, 770]'/>	
+
+	<rosparam command="load" file="$(find cybathlon_feedback)/launch/cybathlon_feedback.yaml" />
+
+	<!-- Cursor controller -->
+	<node pkg="cybathlon_feedback" type="doublethresholdwheel" name="cybathlon_feedback" output="screen" >
+		<rosparam param="classes" subst_value="True">$(arg classes)</rosparam>
+	</node>
+
+	<node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_reconfigure" output="screen" />
+
+</launch>

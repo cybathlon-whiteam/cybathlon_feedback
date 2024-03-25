@@ -2,7 +2,7 @@
 <package format="2">
   <name>cybathlon_feedback</name>
   <version>0.0.1</version>
-  <description>ROSNEURO feedback example with neurodraw</description>
+  <description>Cybathlon feedback wheel</description>
   <author email="luca.tonin@unipd.it">Luca Tonin</author>
   <maintainer email="luca.tonin@unipd.it">Luca Tonin</maintainer>
 
@@ -11,14 +11,12 @@
   <buildtool_depend>catkin</buildtool_depend>
   <depend>roscpp</depend>
   <depend>std_msgs</depend>
-  <depend>geometry_msgs</depend>
 
   <depend>message_generation</depend>
-  <depend>pluginlib</depend>
-
-  <depend>neurodraw</depend>
-  <depend>rosneuro_msgs</depend>
-  <depend>rosneuro_cybathlon_controller</depend>
   <exec_depend>message_runtime</exec_depend>
+
+  <depend>rosneuro_msgs</depend>
+  <depend>rosneuro_feedback_wheel</depend>
+  <depend>cybathlon_commons</depend>
 	
 </package>
