@@ -8,12 +8,13 @@ DoubleThresholdWheel::DoubleThresholdWheel(void) : rosneuro::feedback::SingleWhe
 	// Publisher and Subscriber
 	this->subctr_ = this->nh_.subscribe("/integrator/neuroprediction", 1, 
 									 &DoubleThresholdWheel::on_receive_neuroprediction, this);
-	this->subevt_ = this->nh_.subscribe("/events/bus", 1, 
-									 &DoubleThresholdWheel::on_receive_neuroevent, this);
+	this->subgam_ = this->nh_.subscribe("/events/bus", 1, 
+									 &DoubleThresholdWheel::on_receive_game_event, this);
+	this->subart_ = this->nh_.subscribe("/events/bus", 1, 
+									 &DoubleThresholdWheel::on_receive_artifact_event, this);
 	this->pubevt_ = this->nh_.advertise<rosneuro_msgs::NeuroEvent>("/events/bus", 1);
 
 	this->srv_reset_ = this->nh_.serviceClient<std_srvs::Empty>("/integrator/reset");
-	
 
 	this->has_new_input_ = false;
 	this->ctr_input_     = 0.5f;
@@ -25,6 +26,9 @@ DoubleThresholdWheel::DoubleThresholdWheel(void) : rosneuro::feedback::SingleWhe
 
 	// Only for developing in virtual box
 	this->engine_->set_fps_tolerance(40.0f);
+
+	// By deafult starting with the wheelchair task
+	this->config_ = this->get_task_config(cybathlon::GameTask::Wheelchair);
 
 	// Bind dynamic reconfigure callback
 	this->recfg_srv_ = new dyncfg_cybathlon_wheel(this->recfg_mutex_);
@@ -67,82 +71,88 @@ void DoubleThresholdWheel::setup_wheel(void) {
 	this->engine_->add(this->soft_right_);
 	this->engine_->add(this->hard_left_);
 	this->engine_->add(this->hard_right_);
+
+	// Artifact warning (using circle_ from the parent class)	
+	this->circle_->set_color(neurodraw::Palette::orange);
+	
 }
 
 bool DoubleThresholdWheel::configure(void) {
-
-	const std::string WheelchairTask   = cybathlon::to_string(cybathlon::GameTask::Wheelchair);
-	const std::string ScreenCursorTask = cybathlon::to_string(cybathlon::GameTask::ScreenCursor);
-	const std::string RoboticArmTask   = cybathlon::to_string(cybathlon::GameTask::RoboticArm);
-
-	// Get Wheelchair feedback parameters
-	this->p_nh_.param<double>(WheelchairTask + "/soft_threshold_left", 
-							  this->param_wheelchair_.soft_threshold_left, 0.7f);
-	this->p_nh_.param<double>(WheelchairTask + "/soft_threshold_right", 
-							  this->param_wheelchair_.soft_threshold_right, 0.7f);
-	this->p_nh_.param<double>(WheelchairTask + "/hard_threshold_left", 
-							  this->param_wheelchair_.hard_threshold_left, 0.9f);
-	this->p_nh_.param<double>(WheelchairTask + "/hard_threshold_right", 
-							  this->param_wheelchair_.hard_threshold_right, 0.9f);
-	this->p_nh_.param<bool>(WheelchairTask + "/reset_on_soft", 
-							  this->param_wheelchair_.has_reset_on_soft, false);
-	this->p_nh_.param<bool>(WheelchairTask + "/reset_on_hard", 
-							  this->param_wheelchair_.has_reset_on_hard, true);
-	
-	// Get ScreenCursor feedback parameters
-	this->p_nh_.param<double>(ScreenCursorTask + "/soft_threshold_left", 
-							  this->param_screencursor_.soft_threshold_left, 0.7f);
-	this->p_nh_.param<double>(ScreenCursorTask + "/soft_threshold_right", 
-							  this->param_screencursor_.soft_threshold_right, 0.7f);
-	this->p_nh_.param<double>(ScreenCursorTask + "/hard_threshold_left", 
-							  this->param_screencursor_.hard_threshold_left, 0.9f);
-	this->p_nh_.param<double>(ScreenCursorTask + "/hard_threshold_right", 
-							  this->param_screencursor_.hard_threshold_right, 0.9f);
-	this->p_nh_.param<bool>(ScreenCursorTask + "/reset_on_soft", 
-							  this->param_screencursor_.has_reset_on_soft, false);
-	this->p_nh_.param<bool>(ScreenCursorTask + "/reset_on_hard", 
-							  this->param_screencursor_.has_reset_on_hard, true);
-
-	// Get RoboticArm feedback parameters
-	this->p_nh_.param<double>(RoboticArmTask + "/soft_threshold_left", 
-							  this->param_roboticarm_.soft_threshold_left, 0.7f);
-	this->p_nh_.param<double>(RoboticArmTask + "/soft_threshold_right", 
-							  this->param_roboticarm_.soft_threshold_right, 0.7f);
-	this->p_nh_.param<double>(RoboticArmTask + "/hard_threshold_left", 
-							  this->param_roboticarm_.hard_threshold_left, 0.9f);
-	this->p_nh_.param<double>(RoboticArmTask + "/hard_threshold_right", 
-							  this->param_roboticarm_.hard_threshold_right, 0.9f);
-	this->p_nh_.param<bool>(RoboticArmTask + "/reset_on_soft", 
-							  this->param_roboticarm_.has_reset_on_soft, false);
-	this->p_nh_.param<bool>(RoboticArmTask + "/reset_on_hard", 
-							  this->param_roboticarm_.has_reset_on_hard, true);
-
-	// By default start with the Wheelchair parameters
-	this->set_soft_threshold_left(this->param_wheelchair_.soft_threshold_left);
-	this->set_soft_threshold_right(this->param_wheelchair_.soft_threshold_right);
-	this->set_hard_threshold_left(this->param_wheelchair_.hard_threshold_left);
-	this->set_hard_threshold_right(this->param_wheelchair_.hard_threshold_right); 
-	this->has_reset_on_soft_    = this->param_wheelchair_.has_reset_on_soft;
-	this->has_reset_on_hard_    = this->param_wheelchair_.has_reset_on_hard;
-
-	// Update rqt_reconfigure
-	cybathlon_config_wheel config;
-
-	config.soft_threshold_left  = this->param_wheelchair_.soft_threshold_left;
-	config.soft_threshold_right = this->param_wheelchair_.soft_threshold_right;
-	config.hard_threshold_left  = this->param_wheelchair_.hard_threshold_left; 
-	config.hard_threshold_right = this->param_wheelchair_.hard_threshold_right;
-	config.reset_on_soft        = this->param_wheelchair_.has_reset_on_soft;
-	config.reset_on_hard        = this->param_wheelchair_.has_reset_on_hard;  
-	this->recfg_srv_->updateConfig(config);
 
 	// Getting classes
 	if(this->p_nh_.getParam("classes", this->classes_) == false) {
 		ROS_ERROR("[%s] Parameter 'classes' is mandatory", this->name().c_str());
 		return false;
 	}
-	
+
+	// Task configuration
+	this->config_wheelchair_   = this->get_wheel_parameters(cybathlon::GameTask::Wheelchair);
+	this->config_roboticarm_   = this->get_wheel_parameters(cybathlon::GameTask::RoboticArm);
+	this->config_screencursor_ = this->get_wheel_parameters(cybathlon::GameTask::ScreenCursor);
+
+	// By deafult starting with the wheelchair task
+	this->config_ = this->get_task_config(cybathlon::GameTask::Wheelchair);
+
+	// Update wheel parameters with the configuration 
+	this->set_wheel_parameters(*(this->config_));
+
+	// Update reconfigure with the new configuration
+	this->recfg_srv_->updateConfig(*(this->config_));
+
+
 	return true;
+}
+
+
+cybathlon_config_wheel DoubleThresholdWheel::get_wheel_parameters(const cybathlon::GameTask& task) {
+
+	std::string stask;
+	cybathlon_config_wheel config;
+
+	// Get task name
+	stask = cybathlon::to_string(task);
+
+	// Get task parameters from server
+	this->p_nh_.param<double>(stask + "/soft_threshold_left",  config.soft_threshold_left,  0.7f);
+	this->p_nh_.param<double>(stask + "/soft_threshold_right", config.soft_threshold_right, 0.7f);
+	this->p_nh_.param<double>(stask + "/hard_threshold_left",  config.hard_threshold_left,  0.9f);
+	this->p_nh_.param<double>(stask + "/hard_threshold_right", config.hard_threshold_right, 0.9f);
+	this->p_nh_.param<bool>(stask + "/reset_on_soft", config.reset_on_soft, false);
+	this->p_nh_.param<bool>(stask + "/reset_on_hard", config.reset_on_hard, true);
+
+	return config;
+}
+
+void DoubleThresholdWheel::set_wheel_parameters(const cybathlon_config_wheel& config) {
+
+	this->set_soft_threshold_left(config.soft_threshold_left);
+	this->set_soft_threshold_right(config.soft_threshold_right);
+	this->set_hard_threshold_left(config.hard_threshold_left);
+	this->set_hard_threshold_right(config.hard_threshold_right); 
+	this->has_reset_on_soft_ = config.reset_on_soft;
+	this->has_reset_on_hard_ = config.reset_on_hard;
+}
+
+cybathlon_config_wheel* DoubleThresholdWheel::get_task_config(const cybathlon::GameTask& task) {
+	
+	cybathlon_config_wheel* config;
+
+	switch(task) {
+		case cybathlon::GameTask::Wheelchair:
+			config = &(this->config_wheelchair_);
+			break;
+		case cybathlon::GameTask::RoboticArm:
+			config = &(this->config_roboticarm_);
+			break;
+		case cybathlon::GameTask::ScreenCursor:
+			config = &(this->config_screencursor_);
+			break;
+		default:
+			config = &(this->config_wheelchair_);
+			break;
+	}
+
+	return config;
 }
 
 void DoubleThresholdWheel::run(void) {
@@ -167,6 +177,16 @@ void DoubleThresholdWheel::run(void) {
 		this->cstate_ = this->nstate_;
 	}
 
+}
+
+void DoubleThresholdWheel::show_artifact(void) {
+	this->circle_->show();
+	this->arc_->set_alpha(0.3f);
+}
+
+void DoubleThresholdWheel::hide_artifact(void) {
+	this->circle_->hide();
+	this->arc_->set_alpha(1.0f);
 }
 
 cybathlon::InputState DoubleThresholdWheel::on_state_transition(float input, cybathlon::InputState cstate) {
@@ -259,54 +279,52 @@ void DoubleThresholdWheel::on_receive_neuroprediction(const rosneuro_msgs::Neuro
 
 }
 
+void DoubleThresholdWheel::on_receive_artifact_event(const rosneuro_msgs::NeuroEvent& msg) {
+	
+	cybathlon::Artifact artevt = cybathlon::to_artifact(msg);
 
-void DoubleThresholdWheel::on_receive_neuroevent(const rosneuro_msgs::NeuroEvent& msg) {
-
-	cybathlon_config_wheel config;
-	std_srvs::Empty resetmsg;
-	GameTask task = cybathlon::to_gametask(msg);
-	WheelParameters* parameters;
-	bool to_be_changed = true;
-
-	switch(task) {
-		case cybathlon::GameTask::Wheelchair:
-			parameters = &(this->param_wheelchair_);
+	switch(artevt) {
+		case cybathlon::Artifact::Ocular:
+			ROS_DEBUG_NAMED("debug", "[%s] Artifact received: Artifact::%s", 
+							this->name().c_str(), 
+							cybathlon::to_string(artevt).c_str());
+			this->show_artifact();
 			break;
-		case cybathlon::GameTask::ScreenCursor:
-			parameters = &(this->param_screencursor_);
-			break;
-		case cybathlon::GameTask::RoboticArm:
-			parameters = &(this->param_roboticarm_);
+		case cybathlon::Artifact::EndOcular:
+			ROS_DEBUG_NAMED("debug", "[%s] Artifact received: Artifact::%s", 
+							this->name().c_str(), 
+							cybathlon::to_string(artevt).c_str());
+			this->hide_artifact();
 			break;
 		default:
-			to_be_changed = false;
 			break;
 	}
+}
 
-	if(to_be_changed == true) {
-		ROS_WARN("[%s] Changing parameters for task %s", this->name().c_str(), 
+
+void DoubleThresholdWheel::on_receive_game_event(const rosneuro_msgs::NeuroEvent& msg) {
+
+	std_srvs::Empty resetmsg;
+	GameTask task = cybathlon::to_gametask(msg);
+
+	if(task == cybathlon::GameTask::End || task == cybathlon::GameTask::Undefined) 
+		return;
+
+	// Set the new task config
+	this->config_ = this->get_task_config(task);
+
+	// Update the wheel parameters with the new configuration
+	this->set_wheel_parameters(*(this->config_));
+
+	// Update dynamic reconfigure
+	this->recfg_srv_->updateConfig(*(this->config_));
+
+	// Ask for reset
+	this->srv_reset_.call(resetmsg);
+		
+	ROS_DEBUG_NAMED("debug", "[%s] Changed parameters for task %s", 
+					this->name().c_str(), 
 					cybathlon::to_string(task).c_str());
-
-		this->srv_reset_.call(resetmsg);
-		this->set_soft_threshold_left(parameters->soft_threshold_left);
-		this->set_soft_threshold_right(parameters->soft_threshold_right);
-		this->set_hard_threshold_left(parameters->hard_threshold_left);
-		this->set_hard_threshold_right(parameters->hard_threshold_right);
-		this->has_reset_on_soft_ = parameters->has_reset_on_soft;
-		this->has_reset_on_hard_ = parameters->has_reset_on_hard;
-
-
-		// Update rqt_reconfigure
-
-		config.soft_threshold_left  = parameters->soft_threshold_left;
-		config.soft_threshold_right = parameters->soft_threshold_right;
-		config.hard_threshold_left  = parameters->hard_threshold_left; 
-		config.hard_threshold_right = parameters->hard_threshold_right;
-		config.reset_on_soft        = parameters->has_reset_on_soft;
-		config.reset_on_hard        = parameters->has_reset_on_hard;  
-		this->recfg_srv_->updateConfig(config);
-	}
-
 }
 
 void DoubleThresholdWheel::set_soft_threshold_left(double threshold) {
@@ -387,6 +405,8 @@ void DoubleThresholdWheel::on_request_reconfigure(cybathlon_config_wheel& config
 		ROS_WARN("[%s] Changed reset on hard to: %s", this->name().c_str(),
 				  this->has_reset_on_hard_ ? "true" : "false");
 	}
+
+	*(this->config_) = config;
 }
 
 }

@@ -8,17 +8,17 @@ cybathlon_feedback:
         reset_on_hard: false
 
     ScreenCursor:
-        soft_threshold_left:  0.7
-        soft_threshold_right:  0.7
+        soft_threshold_left:  0.6
+        soft_threshold_right:  0.6
         hard_threshold_left:  0.8
         hard_threshold_right:  0.8
         reset_on_soft: true
         reset_on_hard: false
 
     RoboticArm:
-        soft_threshold_left:  0.7
-        soft_threshold_right:  0.7
-        hard_threshold_left:  0.9
-        hard_threshold_right:  0.9
+        soft_threshold_left:  0.8
+        soft_threshold_right:  0.8
+        hard_threshold_left:  1.0
+        hard_threshold_right:  1.0
         reset_on_soft: false
         reset_on_hard: true
