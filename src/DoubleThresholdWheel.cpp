@@ -6,7 +6,7 @@ namespace cybathlon {
 DoubleThresholdWheel::DoubleThresholdWheel(void) : rosneuro::feedback::SingleWheel("DoubleThresholdWheel"), p_nh_("~") {
 
 	// Publisher and Subscriber
-	this->subctr_ = this->nh_.subscribe("/integrator/neuroprediction", 1, 
+	this->subctr_ = this->nh_.subscribe("/smr/neuroprediction/integrated", 1, 
 									 &DoubleThresholdWheel::on_receive_neuroprediction, this);
 	this->subgam_ = this->nh_.subscribe("/events/bus", 1, 
 									 &DoubleThresholdWheel::on_receive_game_event, this);
