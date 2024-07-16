@@ -16,7 +16,6 @@ namespace cybathlon {
 
 using cybathlon_config_wheel = cybathlon_feedback::CybathlonWheelConfig;
 using dyncfg_cybathlon_wheel = dynamic_reconfigure::Server<cybathlon_config_wheel>;
-using InputState = cybathlon::BCICommand;
 
 class DoubleThresholdWheel : public rosneuro::feedback::SingleWheel {
 
@@ -35,7 +34,9 @@ class DoubleThresholdWheel : public rosneuro::feedback::SingleWheel {
 		void on_receive_artifact_event(const rosneuro_msgs::NeuroEvent& msg);	
 		void on_receive_neuroprediction(const rosneuro_msgs::NeuroOutput& msg);
 		
-		InputState on_state_transition(float input, cybathlon::InputState cstate);
+		cybathlon::FeedbackState get_current_state(float input);
+		bool on_state_transition(cybathlon::FeedbackState pstate, cybathlon::FeedbackState cstate);
+		
 		void setup_wheel(void);
 		void set_soft_threshold_right(double threshold);
 		void set_hard_threshold_right(double threshold);
@@ -45,8 +46,8 @@ class DoubleThresholdWheel : public rosneuro::feedback::SingleWheel {
 		void show_artifact(void);
 		void hide_artifact(void);
 
-		cybathlon_config_wheel get_wheel_parameters(const cybathlon::GameTask& task);
-		cybathlon_config_wheel* get_task_config(const cybathlon::GameTask& task);
+		cybathlon_config_wheel get_wheel_parameters(const cybathlon::GameState& task);
+		cybathlon_config_wheel* get_task_config(const cybathlon::GameState& task);
 		void set_wheel_parameters(const cybathlon_config_wheel& config);
 
 	private:
@@ -61,8 +62,8 @@ class DoubleThresholdWheel : public rosneuro::feedback::SingleWheel {
 		std::vector<int> classes_;
 		bool has_new_input_;
 		float ctr_input_;
-		InputState cstate_;
-		InputState nstate_;
+		cybathlon::FeedbackState pstate_;
+		cybathlon::FeedbackState cstate_;
 		bool has_reset_on_soft_;
 		bool has_reset_on_hard_;
 

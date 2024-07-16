@@ -8,18 +8,18 @@ DoubleThresholdWheel::DoubleThresholdWheel(void) : rosneuro::feedback::SingleWhe
 	// Publisher and Subscriber
 	this->subctr_ = this->nh_.subscribe("/smr/neuroprediction/integrated", 1, 
 									 &DoubleThresholdWheel::on_receive_neuroprediction, this);
-	this->subgam_ = this->nh_.subscribe("/events/bus", 1, 
+	this->subgam_ = this->nh_.subscribe("/events/game", 1, 
 									 &DoubleThresholdWheel::on_receive_game_event, this);
-	this->subart_ = this->nh_.subscribe("/events/bus", 1, 
+	this->subart_ = this->nh_.subscribe("/events/artifacts", 1, 
 									 &DoubleThresholdWheel::on_receive_artifact_event, this);
-	this->pubevt_ = this->nh_.advertise<rosneuro_msgs::NeuroEvent>("/events/bus", 1);
+	this->pubevt_ = this->nh_.advertise<rosneuro_msgs::NeuroEvent>("/events/feedback", 1);
 
 	this->srv_reset_ = this->nh_.serviceClient<std_srvs::Empty>("/integrator/reset");
 
 	this->has_new_input_ = false;
 	this->ctr_input_     = 0.5f;
-	this->cstate_ = cybathlon::InputState::None;
-	this->nstate_ = cybathlon::InputState::None;
+	this->pstate_ = cybathlon::FeedbackState::None;
+	this->cstate_ = cybathlon::FeedbackState::None;
 
 	// Graphic setup
 	this->setup_wheel();
@@ -28,7 +28,7 @@ DoubleThresholdWheel::DoubleThresholdWheel(void) : rosneuro::feedback::SingleWhe
 	this->engine_->set_fps_tolerance(40.0f);
 
 	// By deafult starting with the wheelchair task
-	this->config_ = this->get_task_config(cybathlon::GameTask::Wheelchair);
+	this->config_ = this->get_task_config(cybathlon::GameState::Wheelchair);
 
 	// Bind dynamic reconfigure callback
 	this->recfg_srv_ = new dyncfg_cybathlon_wheel(this->recfg_mutex_);
@@ -86,12 +86,12 @@ bool DoubleThresholdWheel::configure(void) {
 	}
 
 	// Task configuration
-	this->config_wheelchair_   = this->get_wheel_parameters(cybathlon::GameTask::Wheelchair);
-	this->config_roboticarm_   = this->get_wheel_parameters(cybathlon::GameTask::RoboticArm);
-	this->config_screencursor_ = this->get_wheel_parameters(cybathlon::GameTask::ScreenCursor);
+	this->config_wheelchair_   = this->get_wheel_parameters(cybathlon::GameState::Wheelchair);
+	this->config_roboticarm_   = this->get_wheel_parameters(cybathlon::GameState::RoboticArm);
+	this->config_screencursor_ = this->get_wheel_parameters(cybathlon::GameState::ScreenCursor);
 
 	// By deafult starting with the wheelchair task
-	this->config_ = this->get_task_config(cybathlon::GameTask::Wheelchair);
+	this->config_ = this->get_task_config(cybathlon::GameState::Wheelchair);
 
 	// Update wheel parameters with the configuration 
 	this->set_wheel_parameters(*(this->config_));
@@ -104,7 +104,7 @@ bool DoubleThresholdWheel::configure(void) {
 }
 
 
-cybathlon_config_wheel DoubleThresholdWheel::get_wheel_parameters(const cybathlon::GameTask& task) {
+cybathlon_config_wheel DoubleThresholdWheel::get_wheel_parameters(const cybathlon::GameState& task) {
 
 	std::string stask;
 	cybathlon_config_wheel config;
@@ -133,18 +133,18 @@ void DoubleThresholdWheel::set_wheel_parameters(const cybathlon_config_wheel& co
 	this->has_reset_on_hard_ = config.reset_on_hard;
 }
 
-cybathlon_config_wheel* DoubleThresholdWheel::get_task_config(const cybathlon::GameTask& task) {
+cybathlon_config_wheel* DoubleThresholdWheel::get_task_config(const cybathlon::GameState& task) {
 	
 	cybathlon_config_wheel* config;
 
 	switch(task) {
-		case cybathlon::GameTask::Wheelchair:
+		case cybathlon::GameState::Wheelchair:
 			config = &(this->config_wheelchair_);
 			break;
-		case cybathlon::GameTask::RoboticArm:
+		case cybathlon::GameState::RoboticArm:
 			config = &(this->config_roboticarm_);
 			break;
-		case cybathlon::GameTask::ScreenCursor:
+		case cybathlon::GameState::ScreenCursor:
 			config = &(this->config_screencursor_);
 			break;
 		default:
@@ -162,7 +162,10 @@ void DoubleThresholdWheel::run(void) {
 
 	while(ros::ok()) {
 
-		this->nstate_ = this->on_state_transition(this->ctr_input_, this->cstate_);
+		this->cstate_ = this->get_current_state(this->ctr_input_);
+
+		this->on_state_transition(this->pstate_, this->cstate_);
+
 		
 		if(this->has_new_input_ = true) {
 			
@@ -174,7 +177,7 @@ void DoubleThresholdWheel::run(void) {
 		ros::spinOnce();
 		r.sleep();
 		
-		this->cstate_ = this->nstate_;
+		this->pstate_ = this->cstate_;
 	}
 
 }
@@ -189,54 +192,59 @@ void DoubleThresholdWheel::hide_artifact(void) {
 	this->arc_->set_alpha(1.0f);
 }
 
-cybathlon::InputState DoubleThresholdWheel::on_state_transition(float input, cybathlon::InputState cstate) {
+cybathlon::FeedbackState DoubleThresholdWheel::get_current_state(float input) {
+
+	cybathlon::FeedbackState state;
+
+	if(input >= this->hard_threshold_left_) {
+		state = cybathlon::FeedbackState::OverHardLeft;
+	} else if(input <= this->hard_threshold_right_) {
+		state = cybathlon::FeedbackState::OverHardRight;
+	} else if(input >= this->soft_threshold_left_) {
+		state = cybathlon::FeedbackState::OverSoftLeft;
+	} else if(input <= this->soft_threshold_right_) {
+		state = cybathlon::FeedbackState::OverSoftRight;
+	} else {
+		state = cybathlon::FeedbackState::None;
+	}
+
+	return state;
+}
+
+bool DoubleThresholdWheel::on_state_transition(cybathlon::FeedbackState pstate,
+											   cybathlon::FeedbackState cstate) {
 
 	rosneuro_msgs::NeuroEvent evtmsg;
 	std_srvs::Empty resetmsg;
+	bool retcod = false;
 
-	cybathlon::InputState nstate, rstate;
-	rstate = cstate;
-
-	if(input >= this->hard_threshold_left_) {
-		nstate = cybathlon::InputState::HardLeft;
-	} else if(input <= this->hard_threshold_right_) {
-		nstate = cybathlon::InputState::HardRight;
-	} else if(input >= this->soft_threshold_left_) {
-		nstate = cybathlon::InputState::SoftLeft;
-	} else if(input <= this->soft_threshold_right_) {
-		nstate = cybathlon::InputState::SoftRight;
-	} else {
-		nstate = cybathlon::InputState::None;
-	}
-
-	if(nstate != cstate) {
+	if(pstate != cstate) {
 		ROS_INFO("[%s] State transition: %s->%s", this->name().c_str(), 
-												  cybathlon::to_string(cstate).c_str(), 
-												  cybathlon::to_string(nstate).c_str());
+												  cybathlon::to_string(pstate).c_str(), 
+												  cybathlon::to_string(cstate).c_str());
 
 		// Publish the event
 		evtmsg.header.stamp = ros::Time::now();
-		evtmsg.event = static_cast<int>(nstate);
+		evtmsg.event = static_cast<int>(cstate);
 		this->pubevt_.publish(evtmsg);
 
 		// Call for reset if requested
-		if(this->has_reset_on_soft_ && (nstate == cybathlon::InputState::SoftLeft ||
-										nstate == cybathlon::InputState::SoftRight)) {
+		if(this->has_reset_on_soft_ && (cstate == cybathlon::FeedbackState::OverSoftLeft ||
+										cstate == cybathlon::FeedbackState::OverSoftRight)) {
 			this->srv_reset_.call(resetmsg);
 			ROS_WARN("[%s] Soft threshold reached, reset required", this->name().c_str());
 		}
 
-		if(this->has_reset_on_hard_ && (nstate == cybathlon::InputState::HardLeft ||
-										nstate == cybathlon::InputState::HardRight)) {
+		if(this->has_reset_on_hard_ && (cstate == cybathlon::FeedbackState::OverHardLeft ||
+										cstate == cybathlon::FeedbackState::OverHardRight)) {
 			this->srv_reset_.call(resetmsg);
 			ROS_WARN("[%s] Hard threshold reached, reset required", this->name().c_str());
 		}
 
-		// Update the return state
-		rstate = nstate;
+		retcod = true;
 	}
 
-	return rstate;
+	return retcod;
 }
 
 void DoubleThresholdWheel::on_receive_neuroprediction(const rosneuro_msgs::NeuroOutput& msg) {
@@ -281,16 +289,16 @@ void DoubleThresholdWheel::on_receive_neuroprediction(const rosneuro_msgs::Neuro
 
 void DoubleThresholdWheel::on_receive_artifact_event(const rosneuro_msgs::NeuroEvent& msg) {
 	
-	cybathlon::Artifact artevt = cybathlon::to_artifact(msg);
+	cybathlon::ArtifactState artevt = cybathlon::to_artifactstate(msg);
 
 	switch(artevt) {
-		case cybathlon::Artifact::Ocular:
+		case cybathlon::ArtifactState::Ocular:
 			ROS_DEBUG_NAMED("debug", "[%s] Artifact received: Artifact::%s", 
 							this->name().c_str(), 
 							cybathlon::to_string(artevt).c_str());
 			this->show_artifact();
 			break;
-		case cybathlon::Artifact::EndOcular:
+		case cybathlon::ArtifactState::EndOcular:
 			ROS_DEBUG_NAMED("debug", "[%s] Artifact received: Artifact::%s", 
 							this->name().c_str(), 
 							cybathlon::to_string(artevt).c_str());
@@ -305,9 +313,9 @@ void DoubleThresholdWheel::on_receive_artifact_event(const rosneuro_msgs::NeuroE
 void DoubleThresholdWheel::on_receive_game_event(const rosneuro_msgs::NeuroEvent& msg) {
 
 	std_srvs::Empty resetmsg;
-	GameTask task = cybathlon::to_gametask(msg);
+	GameState task = cybathlon::to_gamestate(msg);
 
-	if(task == cybathlon::GameTask::End || task == cybathlon::GameTask::Undefined) 
+	if(task == cybathlon::GameState::End || task == cybathlon::GameState::Undefined) 
 		return;
 
 	// Set the new task config
