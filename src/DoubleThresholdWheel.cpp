@@ -51,11 +51,14 @@ void DoubleThresholdWheel::setup_wheel(void) {
 	this->minline_->hide();
 	this->maxline_->hide();
 
+	// middle line
+	//this->mline_ = new neurodraw::Rectangle(0.02f, 0.15f, true, neurodraw::Palette::darkgreen);
+
 	// Creating soft and hard thresholds
-	this->soft_left_  = new neurodraw::Rectangle(0.01f, 0.15f, true, neurodraw::Palette::dimgray);
-	this->soft_right_ = new neurodraw::Rectangle(0.01f, 0.15f, true, neurodraw::Palette::dimgray);
-	this->hard_left_  = new neurodraw::Rectangle(0.01f, 0.15f, true, neurodraw::Palette::royalblue);
-	this->hard_right_ = new neurodraw::Rectangle(0.01f, 0.15f, true, neurodraw::Palette::firebrick);
+	this->soft_left_  = new neurodraw::Rectangle(0.02f, 0.15f, true, neurodraw::Palette::dimgray);
+	this->soft_right_ = new neurodraw::Rectangle(0.02f, 0.15f, true, neurodraw::Palette::dimgray);
+	this->hard_left_  = new neurodraw::Rectangle(0.04f, 0.15f, true, neurodraw::Palette::royalblue);
+	this->hard_right_ = new neurodraw::Rectangle(0.04f, 0.15f, true, neurodraw::Palette::firebrick);
 	
 	this->soft_left_ ->move(0.0f, 0.725f);
 	this->soft_right_->move(0.0f, 0.725f);
